@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Async Order System</title>
+</head>
+<body>
+  <h2>Order Submission</h2>
+
+  <input id="order" placeholder="Order ID" />
+  <button onclick="submit()">Submit</button>
+
+  <pre id="out"></pre>
+
+  <script>
+    function submit() {
+      const orderId = document.getElementById("order").value;
+      const key = "idem-" + Math.floor(Math.random() * 100000);
+
+      fetch("/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": key
+        },
+        body: JSON.stringify({ orderId })
+      })
+      .then(r => r.json())
+      .then(d => {
+        document.getElementById("out").innerText =
+          JSON.stringify(d, null, 2);
+      });
+    }
+  </script>
+</body>
+</html>
