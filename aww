@@ -1,0 +1,592 @@
+EBS
+1️⃣ Create and Attach EBS Volume + Scale Instance
+________________________________________
+PART A: Create and Attach EBS Volume
+________________________________________
+Step 1: Create EBS Volume (Console)
+1.	AWS Console → EC2
+2.	Left panel → Volumes
+3.	Click Create volume
+Fill:
+•	Volume type: gp3
+•	Size: 10 or 20 GB
+•	Availability Zone: SAME as EC2 instance
+Click Create volume
+________________________________________
+Step 2: Attach Volume
+1.	Select the volume
+2.	Actions → Attach volume
+3.	Choose EC2 instance
+4.	Device name: /dev/xvdf
+5.	Click Attach
+________________________________________
+Step 3: Connect to EC2 (Linux)
+ssh -i key.pem ec2-user@<public-ip>
+________________________________________
+Step 4: Check Attached Disk
+lsblk
+You will see something like:
+nvme0n1   (root)
+nvme1n1   (new volume)
+________________________________________
+PART B: Partition, Format, Mount
+________________________________________
+Step 5: Create Partition
+sudo fdisk /dev/nvme1n1
+Inside fdisk:
+n
+p
+Enter
+Enter
+Enter
+w
+Then:
+sudo partprobe
+________________________________________
+Step 6: Format Volume
+sudo mkfs.xfs /dev/nvme1n1p1
+________________________________________
+Step 7: Create Mount Directory
+sudo mkdir /mnt/data
+________________________________________
+Step 8: Mount Volume
+sudo mount /dev/nvme1n1p1 /mnt/data
+Check:
+df -h
+________________________________________
+Step 9: Make Permanent (Important)
+Get UUID:
+sudo blkid
+Copy UUID.
+Edit fstab:
+sudo nano /etc/fstab
+Add line:
+UUID=xxxx-xxxx  /mnt/data  xfs  defaults,nofail  0  0
+Save.
+Test:
+sudo mount -a
+Reboot:
+sudo reboot
+After reboot:
+ssh -i EFS2.pem ec2-user@3.86.167.180
+df -h
+Volume should auto-mount.
+________________________________________
+1️⃣ b) Scale EC2 (Increase CPU & RAM)
+You CANNOT change CPU/RAM directly.
+You must change instance type.
+________________________________________
+Step 1: Stop Instance
+EC2 → Instances
+Select instance
+Click Stop
+________________________________________
+Step 2: Change Instance Type
+Actions → Instance Settings → Change Instance Type
+Example:
+•	t2.micro → t2.small
+•	t3.micro → t3.medium
+Click Apply.
+________________________________________
+Step 3: Start Instance
+Click Start
+Instance now has more CPU and RAM.
+________________________________________
+2️⃣ Snapshot & Cross-Region Restore
+________________________________________
+Step 1: Create Snapshot
+EC2 → Volumes
+Select volume
+Actions → Create snapshot
+Give name
+Create
+________________________________________
+Step 2: Copy Snapshot to Another Region
+EC2 → Snapshots
+Select snapshot
+Actions → Copy snapshot
+Choose destination region
+Copy
+Wait until status = completed.
+________________________________________
+Step 3: Switch Region
+Top right → Change region
+________________________________________
+Step 4: Create Volume from Snapshot
+EC2 → Snapshots
+Select copied snapshot
+Actions → Create volume
+Choose AZ
+Create
+________________________________________
+Step 5: Attach Volume
+EC2 → Volumes
+Select new volume
+Attach to instance
+
+
+1️⃣ b) Scale EC2 (Increase CPU & RAM)
+You CANNOT change CPU/RAM directly.
+You must change instance type.
+________________________________________
+Step 1: Stop Instance
+EC2 → Instances
+Select instance
+Click Stop
+________________________________________
+Step 2: Change Instance Type
+Actions → Instance Settings → Change Instance Type
+Example:
+•	t2.micro → t2.small
+•	t3.micro → t3.medium
+Click Apply.
+________________________________________
+Step 3: Start Instance
+Click Start
+Instance now has more CPU and RAM.
+________________________________________
+2️⃣ Snapshot & Cross-Region Restore
+________________________________________
+Step 1: Create Snapshot
+1st AZ instance -> 
+Ssh
+cd /mnt/data
+echo "This file is for cross region testing" | sudo tee cross-region-demo.txt
+ls
+EC2 → Volumes
+Select volume
+Actions → Create snapshot
+Give name
+Create
+________________________________________
+Step 2: Copy Snapshot to Another Region
+EC2 → Snapshots
+Select snapshot
+Actions → Copy snapshot
+Choose destination region
+Copy
+Wait until status = completed.
+________________________________________
+Step 3: Switch Region
+Top right → Change region
+________________________________________
+Step 4: Create Volume from Snapshot
+EC2 → Snapshots
+Select copied snapshot
+Actions → Create volume
+Choose AZ
+Create
+________________________________________
+Step 5: Attach Volume
+EC2 → Volumes
+Select new volume
+Attach to instance
+Mount Inside Linux
+SSH into new instance:
+ssh -i key.pem ec2-user@<public-ip>
+Check disk:
+lsblk
+You should see nvme1n1 or similar.
+Mount:
+sudo mkdir /mnt/recovery
+sudo mount /dev/nvme1n1p1 /mnt/recovery
+Check:
+ls /mnt/recovery
+Your old data will appear.
+
+
+
+
+EFS
+STEP 1: Launch Two EC2 Instances
+Go to:
+EC2 → Instances → Launch Instance
+________________________________________
+Instance 1 Configuration
+Name: EFS-1
+AMI:
+Choose Amazon Linux 2 (Very Important – EFS utils supported)
+Instance Type:
+t2.micro
+Key Pair:
+Create new key pair
+Name: EFS
+Download the .pem file
+Network Settings:
+•	VPC: Default
+•	Subnet: Choose one in ap-south-1a
+•	Auto-assign Public IP: Enable
+Security Group:
+Create new security group:
+Name: NFS-SG
+Add inbound rules:
+Type	Port	Source
+SSH	22	Anywhere
+NFS	2049	Anywhere (for lab)
+Launch Instance.
+________________________________________
+Instance 2 Configuration
+Repeat same process:
+Name: EFS-2
+Subnet:
+Choose a different AZ → ap-south-1b
+Use same:
+•	AMI
+•	Instance Type
+•	Key Pair
+•	Security Group
+Launch.
+________________________________________
+Now you have:
+• 2 EC2 instances
+• Same security group
+• Different AZs
+________________________________________
+STEP 2: Create EFS File System
+Go to:
+EFS → Create file system
+________________________________________
+Configuration
+File system name: (optional)
+VPC: Default
+Click Next
+________________________________________
+Network Settings
+Important:
+• Delete all existing security groups
+• Add the security group you created earlier (NFS-SG)
+This allows EC2 to talk to EFS via port 2049.
+Click Create.
+________________________________________
+STEP 3: Connect to Both EC2 Instances
+Open 2 PowerShell windows.
+For each instance:
+ssh -i path-to-EFS.pem ec2-user@<Public-IP>
+Then switch to root:
+sudo su
+________________________________________
+Create Mount Directory
+mkdir efs
+________________________________________
+Install EFS Utilities
+yum install -y amazon-efs-utils
+Verify (optional):
+rpm -qa | grep efs
+Repeat this process for BOTH instances.
+________________________________________
+STEP 4: Attach (Mount) EFS
+Go to:
+EFS → Your File System → Attach
+Choose:
+Mount via DNS
+You will see something like:
+sudo mount -t efs fs-12345678:/ efs
+Copy that command.
+Now go to BOTH EC2 terminals and run it.
+If mounted successfully, no error will appear.
+________________________________________
+STEP 5: Test Shared Storage
+On EFS-1:
+cd efs
+touch file1.txt
+ls
+Now go to EFS-2:
+cd efs
+ls
+You should see:
+file1.txt
+That proves:
+Both instances are using same storage.
+
+
+
+
+EC2
+PART 1 — Create Linux EC2 (Ubuntu)
+STEP 1 — Launch Instance
+Go to:
+EC2 → Instances → Launch Instance
+Configure:
+Name
+Ubuntu-EC2
+AMI
+Choose:
+Ubuntu Server 22.04 LTS (Free Tier eligible)
+Instance Type
+t2.micro or t3.micro
+Key Pair
+Create new:
+UbuntuKey
+Type: RSA
+Format: .pem
+Download it.
+Network Settings
+Click Edit.
+VPC: Default
+Auto-assign Public IP: Enable
+Security Group
+Create new security group:
+Add inbound rule:
+Type	Port	Source
+SSH	22	My IP
+DO NOT use 0.0.0.0/0 in production.
+Click Launch.
+Wait until:
+Instance State → Running
+Status checks → 2/2 passed
+________________________________________
+PART 2 — Connect Using SSH (.pem)
+Open PowerShell.
+Go to folder where key exists:
+cd C:\Users\YourName
+Fix permissions (Windows):
+icacls UbuntuKey.pem /inheritance:r
+icacls UbuntuKey.pem /grant:r "YourUsername:R"
+Now connect:
+ssh -i UbuntuKey.pem ubuntu@<Public-IP>
+Example:
+ssh -i UbuntuKey.pem ubuntu@3.110.xxx.xxx
+First time:
+Type:
+yes
+Verify:
+whoami
+Output:
+ubuntu
+Connection successful.
+________________________________________
+PART 3 — Connect Using PuTTY (.ppk)
+PuTTY cannot use .pem directly.
+STEP 1 — Convert PEM to PPK
+Open PuTTYgen.
+1.	Click Load
+2.	Change file type → All Files
+3.	Select UbuntuKey.pem
+4.	Click Save Private Key
+5.	Save as:
+UbuntuKey.ppk
+________________________________________
+STEP 2 — Configure PuTTY
+Open PuTTY.
+Session:
+Host Name:
+ubuntu@<Public-IP>
+Left panel:
+Connection → SSH → Auth → Credentials
+Browse → Select UbuntuKey.ppk
+Click Open.
+Click Yes (first time).
+You are connected.
+Verify:
+whoami
+Output:
+ubuntu
+________________________________________
+PART 4 — Connect Using AWS CloudShell
+STEP 1 — Open CloudShell
+Top right in AWS Console → Click terminal icon.
+Wait until it opens.
+________________________________________
+STEP 2 — Upload Key
+Click:
+Actions → Upload file
+Upload:
+UbuntuKey.pem
+________________________________________
+STEP 3 — Fix Permission
+Inside CloudShell run:
+chmod 400 UbuntuKey.pem
+________________________________________
+STEP 4 — SSH from CloudShell
+ssh -i UbuntuKey.pem ubuntu@<Public-IP>
+Connected.
+________________________________________
+PART 5 — Create Windows EC2 Instance
+Go to:
+EC2 → Launch Instance
+________________________________________
+Configuration
+Name:
+Windows-EC2
+AMI:
+Choose:
+Windows Server 2022
+Instance type:
+t2.micro or t3.micro
+Key pair:
+Create new:
+WindowsKey.pem
+________________________________________
+Security Group
+Add inbound rule:
+Type	Port	Source
+RDP	3389	My IP
+Launch.
+Wait until Running.
+________________________________________
+PART 6 — Get Windows Password
+Go to:
+EC2 → Select Windows Instance → Connect → RDP Client
+Click:
+Get Password
+Upload:
+WindowsKey.pem
+Click Decrypt Password.
+Copy the password.
+________________________________________
+PART 7 — Connect via RDP
+On Windows PC:
+Press:
+Win + R
+Type:
+mstsc
+In Computer field:
+<Public-IP>
+Click Connect.
+Login:
+Username:
+Administrator
+Password:
+(Paste decrypted password)
+You are now inside Windows EC2.
+________________________________________
+PART 8 — Important Verification Commands
+Linux EC2:
+whoami
+uname -a
+Windows EC2 (inside RDP):
+Open Command Prompt:
+whoami
+systeminfo
+________________________________________
+PART 9 — Migration Between Regions
+To migrate EC2:
+1.	Create AMI from instance
+2.	Copy AMI to another region
+3.	Launch instance from copied AMI
+
+
+
+
+S3
+Creating an S3 Bucket, Uploading Object & Enabling Public Access
+PART A: Using AWS Console (Step-by-Step)
+Step 1: Login
+•	Open: https://aws.amazon.com/console/
+•	Login with your AWS / AWS Academy account
+________________________________________
+Step 2: Create S3 Bucket
+1.	Go to Services
+2.	Click S3
+3.	Click Create bucket
+Fill details:
+•	Bucket name: my-public-bucket-123
+•	Region: Choose nearest region (e.g., ap-south-1 for Hyderabad)
+IMPORTANT – Public Access
+Under Block Public Access settings:
+•	Uncheck Block all public access
+•	Uncheck all 4 options
+•	Tick: I acknowledge that this bucket will become public
+Click Create bucket
+Bucket created successfully.
+________________________________________
+Step 3: Enable Bucket Level Public Access (ACL)
+1.	Open the bucket
+2.	Go to Permissions tab
+3.	Scroll to Access Control List (ACL)
+4.	Click Edit
+5.	Under Public access
+o	Select Everyone (public access)
+o	Tick Read
+6.	Save changes
+Bucket is now publicly readable.
+________________________________________
+Step 4: Upload Object
+1.	Go to Objects tab
+2.	Click Upload
+3.	Click Add files
+4.	Select file (example: image.jpg)
+5.	Click Upload
+________________________________________
+Step 5: Enable Object-Level Public Access
+1.	Click uploaded object
+2.	Go to Permissions
+3.	Scroll to Access Control List (ACL)
+4.	Click Edit
+5.	Under Public access:
+o	Select Everyone
+o	Tick Read
+6.	Save changes
+________________________________________
+Step 6: Verify
+1.	Copy Object URL
+2.	Open in Incognito browser
+3.	File should open without login
+Public access working.
+________________________________________
+2️⃣ S3 Versioning
+Step 1: Enable Versioning
+1.	Open S3
+2.	Select your bucket
+3.	Go to Properties
+4.	Scroll to Bucket Versioning
+5.	Click Edit
+6.	Select Enable
+7.	Save changes
+Versioning enabled.
+________________________________________
+Output Scenario
+Upload File
+Upload: report.pdf
+•	A Version ID is generated automatically.
+Modify and Upload Again
+Upload same file name again.
+•	Old version preserved
+•	New version becomes current
+Delete File
+Delete report.pdf
+•	Object disappears
+•	A Delete Marker is created
+•	Previous versions still exist
+•	You can restore old version
+________________________________________
+3️⃣ Cross-Region Replication (CRR)
+Prerequisites
+•	Versioning enabled on both buckets
+•	Buckets must be in different regions
+________________________________________
+Step 1: Create Destination Bucket
+1.	S3 → Create bucket
+2.	Bucket name: dest-crr-bucket
+3.	Select different region
+4.	Create bucket
+5.	Enable Versioning on destination bucket
+________________________________________
+Step 2: Create Replication Rule
+1.	Open Source bucket
+2.	Go to Management tab
+3.	Click Replication rules
+4.	Click Create replication rule
+Fill details:
+•	Rule name: academy-crr-rule
+•	Status: Enabled
+•	IAM Role: Select existing → choose labrole
+•	Scope: Apply to all objects
+________________________________________
+Step 3: Choose Destination
+•	Select Another bucket
+•	Choose dest-crr-bucket
+•	Confirm region is different
+•	Choose Use AWS-managed role / default role
+•	Replicate new objects
+•	Leave encryption default
+Click Save
+Replication activated.
+________________________________________
+CRR Output
+Upload file image.png in source bucket.
+Open destination bucket:
+•	image.png appears automatically
+•	Version ID present
+Replication successful.
+
