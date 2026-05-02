@@ -1,0 +1,350 @@
+EXPERIMENT 7: AWS LAMBDA (AS PER PDF – DETAILED STEPS)
+Aim
+To create and execute an AWS Lambda function.
+________________________________________
+Procedure
+Step 1: Login
+•	Login to AWS / AWS Academy Learner Lab 
+________________________________________
+Step 2: Navigate to Lambda
+•	Go to AWS Services 
+•	Select Lambda 
+________________________________________
+Step 3: Create Function
+•	Click on Create Function 
+________________________________________
+Step 4: Configure Function
+Select the following:
+•	Author from scratch 
+•	Function Name: MyLambda1 
+•	Runtime: Python 3.x 
+________________________________________
+Step 5: Configure Permissions
+•	Under permissions: 
+o	Select Create a new role with basic Lambda permissions 
+________________________________________
+Step 6: Create Function
+•	Click on Create Function 
+________________________________________
+Step 7: Write Lambda Code
+In the code editor, write:
+def lambda_handler(event, context):
+    return {
+        'statusCode': 200,
+        'body': 'Hello from Lambda'
+    }
+________________________________________
+Step 8: Deploy
+•	Click on Deploy 
+________________________________________
+Step 9: Create Test Event
+•	Click on Test 
+•	Click Create new test event 
+•	Enter: 
+o	Event name: test1 
+o	Keep default JSON 
+________________________________________
+Step 10: Execute
+•	Click on Test 
+________________________________________
+Step 11: Output
+•	The execution result will be displayed: 
+o	Status: Succeeded 
+o	Output: "Hello from Lambda" 
+________________________________________
+Result
+The AWS Lambda function was successfully created and executed.
+
+
+
+
+
+
+
+EXPERIMENT 8: S3 + SNS + SQS + Lambda
+Aim
+To integrate AWS services for event-driven processing.
+________________________________________
+🧠 Architecture (understand once)
+S3 (upload file)
+   ↓
+SNS (notification)
+   ↓
+SQS (queue)
+   ↓
+Lambda (process event)
+________________________________________
+🔹 STEP 1: Create S3 Bucket
+1.	Go to AWS → S3 
+2.	Click Create bucket 
+Fill:
+•	Bucket name: exp8-bucket-12345 (must be unique) 
+•	Region: choose same region everywhere 
+👉 Click Create bucket
+________________________________________
+🔹 STEP 2: Create SNS Topic
+1.	Go to AWS → SNS 
+2.	Click Topics → Create topic 
+Select:
+•	Type: Standard 
+Fill:
+•	Name: MyTopic 
+👉 Click Create topic
+________________________________________
+🔹 STEP 3: Create SQS Queue
+1.	Go to AWS → SQS 
+2.	Click Create queue 
+Select:
+•	Type: Standard 
+Fill:
+•	Name: MyQueue 
+👉 Click Create queue
+________________________________________
+🔹 STEP 4: Subscribe SQS to SNS
+1.	Go to SNS → Topics → MyTopic 
+2.	Click Create subscription 
+Fill:
+•	Protocol: Amazon SQS 
+•	Endpoint: select MyQueue 
+👉 Click Create subscription
+________________________________________
+🔥 STEP 5: Allow SNS to send to SQS (VERY IMPORTANT)
+1.	Go to SQS → MyQueue 
+2.	Click Permissions tab 
+3.	Click Edit policy 
+👉 Add this policy (replace ARN if needed):
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {"Service": "sns.amazonaws.com"},
+      "Action": "sqs:SendMessage",
+      "Resource": "*"
+    }
+  ]
+}
+👉 Save
+________________________________________
+🔹 STEP 6: Create Lambda Function
+1.	Go to AWS → Lambda 
+2.	Click Create function 
+Select:
+•	Author from scratch 
+Fill:
+•	Function name: MyLambda 
+•	Runtime: Python 3.x 
+👉 Click Create function
+________________________________________
+Replace code:
+def lambda_handler(event, context):
+    print("Event received:", event)
+    return {
+        'statusCode': 200,
+        'body': 'Success'
+    }
+👉 Click Deploy
+________________________________________
+🔹 STEP 7: Connect SQS → Lambda
+1.	Go to Lambda → MyLambda 
+2.	Click Add trigger 
+Select:
+•	Source: SQS 
+•	Queue: MyQueue 
+👉 Click Add
+________________________________________
+🔹 STEP 8: Configure S3 Event → SNS
+1.	Go to S3 → Your bucket 
+2.	Click Properties tab 
+Scroll → Event notifications
+👉 Click Create event notification
+________________________________________
+Fill:
+•	Name: S3Event 
+•	Event types: ✔ PUT (Object Created) 
+•	Destination:
+👉 SNS topic
+→ select MyTopic 
+👉 Click Save changes
+________________________________________
+🔹 STEP 9: TEST
+1.	Go to S3 bucket 
+2.	Click Upload 
+3.	Upload any file 
+________________________________________
+🔥 What happens internally
+•	File uploaded → S3 event triggered 
+•	SNS receives event 
+•	SNS → sends message to SQS 
+•	SQS → triggers Lambda 
+•	Lambda prints event 
+________________________________________
+🔹 STEP 10: Verify Output
+1.	Go to Lambda → MyLambda 
+2.	Click Monitor 
+3.	Click View logs in CloudWatch 
+________________________________________
+You should see:
+Event received: {...}
+________________________________________
+✅ Result
+S3, SNS, SQS, and Lambda services were successfully integrated for event-driven processing.
+________________________________________
+EXPERIMENT 9: ELB + AUTO SCALING (AS PER PDF STYLE)
+Aim
+To implement Elastic Load Balancer with Auto Scaling using AWS EC2 instances.
+________________________________________
+Procedure
+Step 1: Launch EC2 Instance (Template Base)
+1.	Login to AWS 
+2.	Go to Services → EC2 → Launch Instance 
+3.	Configure: 
+o	Name: WebServer 
+o	AMI: Amazon Linux / Ubuntu 
+o	Instance Type: t2.micro 
+o	Key pair: existing 
+4.	Security Group: 
+o	Allow HTTP (port 80) 
+o	Allow SSH (port 22) 
+5.	Click Launch Instance 
+________________________________________
+Step 2: Install Web Server
+1.	Connect to EC2 using SSH 
+2.	Run: 
+sudo apt update
+sudo apt install apache2 -y
+(for Amazon Linux use yum install httpd -y)
+3.	Start service: 
+sudo systemctl start apache2
+________________________________________
+Step 3: Create AMI
+1.	Go to EC2 → Instances 
+2.	Select your instance 
+3.	Click: 
+o	Actions → Image → Create Image 
+4.	Name: MyAMI 
+5.	Click Create 
+________________________________________
+Step 4: Create Launch Template
+1.	Go to EC2 → Launch Templates 
+2.	Click Create launch template 
+3.	Configure: 
+o	Name: MyTemplate 
+o	AMI: select created AMI 
+o	Instance type: t2.micro 
+o	Security group: allow HTTP 
+4.	Click Create 
+________________________________________
+Step 5: Create Target Group
+1.	Go to EC2 → Target Groups 
+2.	Click Create target group 
+3.	Select: 
+o	Type: Instances 
+o	Protocol: HTTP 
+4.	Click Create 
+________________________________________
+Step 6: Create Load Balancer
+1.	Go to EC2 → Load Balancers 
+2.	Click Create Load Balancer 
+3.	Choose: 
+o	Application Load Balancer 
+4.	Configure: 
+o	Scheme: Internet-facing 
+o	Listener: HTTP (port 80) 
+o	Select target group 
+5.	Click Create 
+________________________________________
+Step 7: Create Auto Scaling Group
+1.	Go to EC2 → Auto Scaling Groups 
+2.	Click Create Auto Scaling Group 
+3.	Select: 
+o	Launch template (MyTemplate) 
+4.	Configure: 
+o	Desired capacity: 2 
+o	Min: 1 
+o	Max: 3 
+5.	Attach to: 
+o	Load balancer 
+6.	Click Create 
+________________________________________
+Step 8: Verify
+•	Open Load Balancer DNS 
+•	Website should load 
+•	Multiple instances handle traffic 
+________________________________________
+Result
+Elastic Load Balancer and Auto Scaling were successfully implemented.
+
+
+
+
+
+
+
+
+
+
+EXPERIMENT 10: ELASTIC BEANSTALK
+Aim
+To deploy an application using AWS Elastic Beanstalk.
+________________________________________
+What is Elastic Beanstalk (1 line)
+👉 It automatically deploys and manages web applications (no EC2 setup manually)
+________________________________________
+Procedure (FOLLOW EXACTLY)
+________________________________________
+STEP 1: Go to Beanstalk
+👉 AWS → Services → Elastic Beanstalk
+Click:
+👉 Create Application
+________________________________________
+STEP 2: Application Details
+Fill:
+•	Application name: 
+MyApp
+________________________________________
+STEP 3: Environment
+Select:
+•	Environment tier: Web server environment 
+________________________________________
+STEP 4: Platform
+Select:
+•	Platform: Python 
+•	Platform version: default 
+________________________________________
+STEP 5: Application Code
+Select:
+👉 Sample application
+(IMPORTANT: don’t upload anything)
+________________________________________
+STEP 6: Presets
+Select:
+👉 Single instance (free tier)
+________________________________________
+STEP 7: Service Role (IMPORTANT)
+If asked:
+👉 Select existing role like:
+•	LabRole 
+•	aws-elasticbeanstalk-service-role 
+________________________________________
+STEP 8: Create
+👉 Click Create application
+________________________________________
+⏳ Wait (2–5 minutes)
+Beanstalk will:
+•	Create EC2 
+•	Configure environment 
+•	Deploy app 
+________________________________________
+STEP 9: Open Application
+After creation:
+👉 You will see Domain URL
+Click it:
+http://xxxxx.elasticbeanstalk.com
+
+
+
+
+
+
+
