@@ -1,0 +1,82 @@
+EXP 7: Lambda
+Open Lambda → Create function
+Enter name and select Python runtime
+Choose existing role if permission error
+Write simple return code
+Deploy function
+Create test event {}
+Click Test and verify output
+Fix time sync if signature error
+
+
+EXP 8: S3 + SNS + SQS + Lambda
+Create S3 bucket
+Create SNS topic
+Create SQS queue
+Subscribe SQS to SNS
+Add SQS policy for SNS access
+Create Lambda function
+Attach SQS execution role to Lambda
+Add SQS trigger to Lambda
+Add SNS policy for S3 publish
+Configure S3 event to SNS
+Upload file to S3
+Check Lambda logs
+Fix IAM if trigger fails
+
+
+EXP 9: Load Balancer + Auto Scaling
+Create security group (22, 80)
+Create launch template with user data
+Create target group (HTTP, port 80)
+Create load balancer and attach target group
+Create Auto Scaling group using template
+Set min 1, desired 2, max 3
+Wait for instances to launch
+Check target health status
+Open load balancer DNS
+Refresh to see load distribution
+Fix Apache or SG if not working
+
+
+EXP 10: Elastic Beanstalk
+Create index.html and zip it
+Open Elastic Beanstalk
+Create application and environment
+Choose platform (Node/Python)
+Upload zip file
+Select t2.micro instance
+Create environment
+Open generated URL
+Fix zip structure if error
+
+
+EXP 11: Amazon Lex
+Open Lex and create bot
+Set name and language
+Create intent
+Add utterances
+Add response message
+Save and Build bot
+Test in chat panel
+Rebuild if no response
+
+
+EXP 12: IAM User
+Open IAM → Create user
+Enter username
+Enable console access
+Attach required policies
+Create user
+Login using IAM URL
+Fix permissions if access denied
+
+
+EXP 13: IAM Role
+Open IAM → Create role
+Select AWS service (Lambda/EC2)
+Attach required policies
+Enter role name and create
+Attach role to service
+Add extra permissions if needed
+Fix IAM restriction if denied
